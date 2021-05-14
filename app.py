@@ -52,6 +52,7 @@ def precipitation():
     last_year = dt.date(2017, 8, 23) - dt.timedelta(days=365)
     result = session.query(M.date, M.prcp).filter(M.date >= last_year).all()
     # Create Dictionary of result and return it
+    session.close()
     precip_to_return = {date: prcp for date, prcp in result}
     return jsonify(precip_to_return)
 
@@ -69,26 +70,35 @@ def stations():
 def tobs():
     year_ago2 = dt.date(2017, 8 ,18) - dt.timedelta(days=365)
     result = session.query(M.date, M.tobs).filter_by(station='USC00519281').filter(M.date >= year_ago2).all()
+    session.close()
     # Create Dictionary of result and return it
     tobs_to_return = {date: tobs for date, tobs in result}
     return jsonify(tobs_to_return)
 
-@app.route("/api/v1.0/<start>")
-def start_date(date):
-    sel = [M.station, S.name, M.date, M.prcp, M.tobs, S.elevation, S.latitude, S.longitude,]
-    result = session.query(*sel).filter(M.station == S.station).all()
+@app.route("/api/v1.0/temp/<start>")
+def start_stats(start=None):
+    results = session.query(func.min(M.tobs), func.avg(M.tobs), func.max(M.tobs)).filter(M.date >= start).all()
     
-    canonicalized = date.replace("   ", " " , " ").datetime()
-    for date in result:
-        search_term = result['date'].replace("   ", " " , " ").lower()
-        
-        if search_term == canonicalized:
-            return jsonify(result)
-
-    #return jsonify({"error": f"Character with real_name {real_name} not found."}), 404
-
-
+    session.close()
     
+    start_stats_to_return = {'Date Beginning': start, 'Temp Min': results[0][0], 'Temp Avg': results[0][1],'Temp Max': results[0][2]} 
+    
+    return jsonify(start_stats_to_return)
+
+
+@app.route("/api/v1.0/temp/<start>/<end>")
+def stats(start=None, end=None):
+    # create session link
+    
+    results = session.query(func.min(M.tobs), func.avg(M.tobs), func.max(M.tobs)).filter(M.date >= start).filter(M.date <=end).all()
+    
+    session.close()
+    
+    stats_to_return = {'Date Beginning': start, 'Date End': end, 'Temp Min': results[0][0], 'Temp Avg': results[0][1],'Temp Max': results[0][2]} 
+    
+    return jsonify(stats_to_return)
+    
+  
 
 if __name__ == '__main__':
     app.run()
